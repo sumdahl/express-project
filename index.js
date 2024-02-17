@@ -4,7 +4,7 @@ require("dotenv").config();
 const users = require("./MOCK_DATA.json");
 
 const app = express();
-const port = process.env.ENV || 3000;
+const port = process.env.PORT || 3000;
 
 //Middleware
 app.use(express.urlencoded({ extended: false }));
@@ -17,7 +17,7 @@ app.get("/", (req, res) => {
 app.get("/users", (req, res) => {
   const html = `
     <ul>
-        ${users.map((user) => `<li>${user.first_name}</li>`).join(" ")}
+        ${users.map((user) => `<li>${user.first_name} ${user.last_name}</li>`).join(" ")}
     </ul>
     `;
   return res.send(html);
