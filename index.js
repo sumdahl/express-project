@@ -9,6 +9,17 @@ const port = process.env.PORT || 3000;
 //Middleware
 app.use(express.urlencoded({ extended: false }));
 
+app.use((req, res, next) => {
+  const timeStamp = new Date();
+  fs.appendFile(
+    "log.txt",
+    `${timeStamp.toLocaleString()} : ${req.ip} : ${req.method} : ${req.path}\n`,
+    (err, data) => {
+      next();
+    }
+  );
+});
+
 //Routes
 app.get("/", (req, res) => {
   return res.send("Home Page");
@@ -17,7 +28,9 @@ app.get("/", (req, res) => {
 app.get("/users", (req, res) => {
   const html = `
     <ul>
-        ${users.map((user) => `<li>${user.first_name} ${user.last_name}</li>`).join(" ")}
+        ${users
+          .map((user) => `<li>${user.first_name} ${user.last_name}</li>`)
+          .join(" ")}
     </ul>
     `;
   return res.send(html);
