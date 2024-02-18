@@ -6,7 +6,7 @@ const users = require("./MOCK_DATA.json");
 const app = express();
 const port = process.env.PORT || 3000;
 
-//Middleware
+//Middlewares
 app.use(express.urlencoded({ extended: false }));
 
 app.use((req, res, next) => {
@@ -37,6 +37,8 @@ app.get("/users", (req, res) => {
 });
 
 app.get("/api/users", (req, res) => {
+  console.log(req.headers);
+  res.setHeader("X-MyName", "Sumiran Dahal"); //Always add X to custom header, good practise
   return res.json(users);
 });
 
@@ -45,6 +47,7 @@ app
   .get((req, res) => {
     const id = Number(req.params.id);
     const userToFind = users.find((user) => user.id === id);
+    if (!userToFind) return res.status(404).json({ error: "User not found" });
     return res.json(userToFind);
   })
   .patch((req, res) => {
@@ -76,11 +79,20 @@ app
   });
 
 app.post("/api/users", (req, res) => {
-  //TODO : Create new user
   const body = req.body;
+  if (
+    !body ||
+    !body.first_name ||
+    !body.last_name ||
+    !body.email ||
+    !body.gender ||
+    !body.job_title
+  ) {
+    return res.status(400).json({ msg: "All fields are required" });
+  }
   users.push({ ...body, id: users.length + 1 });
   fs.writeFile("./MOCK_DATA.json", JSON.stringify(users), (err, data) => {
-    return res.json({ status: "success", id: users.length });
+    return res.status(201).json({ status: "success", id: users.length });
   });
 });
 
