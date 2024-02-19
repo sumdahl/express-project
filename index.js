@@ -1,11 +1,43 @@
 const express = require("express");
 const fs = require("fs");
+const mongoose = require("mongoose");
 require("dotenv").config();
-const users = require("./MOCK_DATA.json");
 
 const app = express();
 const port = process.env.PORT || 3000;
 
+//Connection
+mongoose
+  .connect("mongodb://127.0.0.1:27017/test-mongo")
+  .then(() => console.log("DB Connected"))
+  .catch((err) => console.log(`Mongo Error: ${err}`));
+
+//Schema
+const userSchema = new mongoose.Schema(
+  {
+    firstName: {
+      type: String,
+      required: true,
+    },
+    lastName: {
+      type: String,
+    },
+    email: {
+      type: String,
+      required: true,
+      unique: true,
+    },
+    gender: {
+      type: String,
+    },
+    jobTitle: {
+      type: String,
+    },
+  },
+  { timestamps: true }
+);
+
+const User = mongoose.model("users", userSchema);
 //Middlewares
 app.use(express.urlencoded({ extended: false }));
 
@@ -25,60 +57,49 @@ app.get("/", (req, res) => {
   return res.send("Home Page");
 });
 
-app.get("/users", (req, res) => {
+app.get("/users", async (req, res) => {
+  const allDbUser = await User.find({});
   const html = `
     <ul>
-        ${users
-          .map((user) => `<li>${user.first_name} ${user.last_name}</li>`)
+        ${allDbUser
+          .map((user) => `<li>${user.firstName} - ${user.email} </li>`)
           .join(" ")}
     </ul>
     `;
   return res.send(html);
 });
 
-app.get("/api/users", (req, res) => {
-  console.log(req.headers);
-  res.setHeader("X-MyName", "Sumiran Dahal"); //Always add X to custom header, good practise
-  return res.json(users);
+app.get("/api/users", async (req, res) => {
+  const allDbUser = await User.find({});
+  return res.json(allDbUser);
 });
 
 app
   .route("/api/users/:id")
-  .get((req, res) => {
-    const id = Number(req.params.id);
-    const userToFind = users.find((user) => user.id === id);
+  .get(async (req, res) => {
+    const userToFind = await User.findById(req.params.id);
     if (!userToFind) return res.status(404).json({ error: "User not found" });
     return res.json(userToFind);
   })
-  .patch((req, res) => {
-    //edit user with id
-    const id = Number(req.params.id);
-    const updatedData = req.body;
-    //index of user to be edited
-    const index = users.findIndex((user) => user.id === id);
-    if (index !== -1) {
-      users[index] = { ...users[index], ...updatedData };
-      fs.writeFile("./MOCK_DATA.json", JSON.stringify(users), (err, data) => {
-        return res.json({ status: "success", user: users[index] });
-      });
-    } else {
-      res.status(404).json({ message: "User not found" });
-    }
+  .patch(async (req, res) => {
+    //get from frontend
+    await User.findByIdAndUpdate(req.params.id, {
+      lastName: "Changed",
+      jobTitle: "Project Manager",
+    });
+    return res.json({ msg: "Success" });
   })
-  .delete((req, res) => {
-    const id = Number(req.params.id);
-    const index = users.findIndex((user) => user.id === id);
-    if (index !== -1) {
-      users.splice(index, 1); //delete the user from the index
-      fs.writeFile("./MOCK_DATA.json", JSON.stringify(users), (err, data) => {
-        return res.json({ status: "deleted", id });
-      });
-    } else {
-      res.status(404).json({ message: "User not found" });
-    }
+  .delete(async (req, res) => {
+    await User.findByIdAndDelete(req.params.id);
+    return res.json({ msg: "Deleted" });
   });
 
-app.post("/api/users", (req, res) => {
+  //intendedly deleted all the users 
+// app.delete("/api/users", async (req, res) => {
+//   await User.deleteMany({});
+//   return res.json({ msg: "I screwed up your database, haha" });
+// });
+app.post("/api/users", async (req, res) => {
   const body = req.body;
   if (
     !body ||
@@ -90,10 +111,14 @@ app.post("/api/users", (req, res) => {
   ) {
     return res.status(400).json({ msg: "All fields are required" });
   }
-  users.push({ ...body, id: users.length + 1 });
-  fs.writeFile("./MOCK_DATA.json", JSON.stringify(users), (err, data) => {
-    return res.status(201).json({ status: "success", id: users.length });
+  const newUser = await User.create({
+    firstName: body.first_name,
+    lastName: body.last_name,
+    email: body.email,
+    gender: body.gender,
+    jobTitle: body.job_title,
   });
+  return res.status(201).json({ msg: "user created" });
 });
 
 app.listen(port, () => {
